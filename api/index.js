@@ -1,26 +1,9 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
+import 'dotenv/config'
 
-const port = process.env.PORT ?? 4000;
-
-// Temp notes
-let notes = [
-  {
-    id: "1",
-    content: "This is a note",
-    author: "Adam Scott",
-  },
-  {
-    id: "2",
-    content: "This is another note",
-    author: "Harlow Everly",
-  },
-  {
-    id: "3",
-    content: "Oh hey look, another note!",
-    author: "Riley Harrison",
-  },
-];
+import DatabaseClient from "./database.js"
+import { Note } from "./models/index.js";
 
 const typeDefs = `#graphql
   type Note {
@@ -30,7 +13,7 @@ const typeDefs = `#graphql
   }
 
   type Query {
-    notes: [Note!]!
+    notes: [Note]
     note(id: ID): Note
   }
 
@@ -41,28 +24,38 @@ const typeDefs = `#graphql
 
 const resolvers = {
   Query: {
-    notes: () => notes,
-    note: (_, args) => {
-      return notes.find((note) => note.id === args.id);
+    notes: async () => {
+      const records = await Note.find();
+      
+      return records;
+    },
+  
+    note: async (_, args) => {
+      const note = await Note.findById(args.id);
+    
+      return note
     },
   },
 
   Mutation: {
-    newNote: (_, args) => {
-      let noteValue = {
-        id: String(notes.length + 1),
+    newNote: async (_, args) => {
+      let newNoteValues = {
         content: args.content,
         author: "Adam Scott",
       };
 
-      notes.push(noteValue);
+      const note = await Note.create(newNoteValues);
 
-      return noteValue;
+      return note;
     },
   },
 };
 
+DatabaseClient.connect();
+
 const server = new ApolloServer({ typeDefs, resolvers });
+
+const port = process.env.PORT ?? 4000;
 
 startStandaloneServer(server, {
   listen: { port },
