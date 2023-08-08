@@ -1,14 +1,13 @@
 export default {
-    notes: async (_, __, { models }) => {
-        console.log(models)
-        const records = await models.Note.find();
-        
-        return records;
-    },
+  notes: async (_, __, { models }) => {
+    const records = await models.Note.find();
 
-    note: async (_, args, { models }) => {
-        const note = await models.Note.findById(args.id);
+    return records;
+  },
 
-        return note
-    },
-}
+  note: async (_, { id }, { models }) => {
+    const note = await models.Note.findById(id);
+
+    return note;
+  },
+};
