@@ -1,55 +1,12 @@
-import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
+import { ApolloServer } from "@apollo/server";
+import typeDefs from "./schema.js";
+import resolvers from "./resolvers/index.js";
 import 'dotenv/config'
-
 import DatabaseClient from "./database.js"
 import { Note } from "./models/index.js";
 
-const typeDefs = `#graphql
-  type Note {
-    id: ID!
-    content: String!
-    author: String!
-  }
-
-  type Query {
-    notes: [Note]
-    note(id: ID): Note
-  }
-
-  type Mutation {
-    newNote(content: String!): Note!
-  }
-`;
-
-const resolvers = {
-  Query: {
-    notes: async () => {
-      const records = await Note.find();
-      
-      return records;
-    },
-  
-    note: async (_, args) => {
-      const note = await Note.findById(args.id);
-    
-      return note
-    },
-  },
-
-  Mutation: {
-    newNote: async (_, args) => {
-      let newNoteValues = {
-        content: args.content,
-        author: "Adam Scott",
-      };
-
-      const note = await Note.create(newNoteValues);
-
-      return note;
-    },
-  },
-};
+const models = { Note }
 
 DatabaseClient.connect();
 
@@ -59,6 +16,7 @@ const port = process.env.PORT ?? 4000;
 
 startStandaloneServer(server, {
   listen: { port },
+  context: async () => ({ models })
 });
 
 console.log(`🚀 GraphQL Server ready at localhost:${port}`);
