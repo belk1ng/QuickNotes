@@ -9,6 +9,7 @@ You must have an `.env` file, an example file is shown below. It should be saved
 ```
 # Required
 MONGODB_HOST=mongodb://localhost:27017/notes
+JWT_SECRET_KEY=AnyStringYouWant__:3
 
 # Optional
 PORT=5000
