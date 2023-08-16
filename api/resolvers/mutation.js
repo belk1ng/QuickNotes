@@ -1,7 +1,10 @@
 import gravatar from "../utils/gravatar.js";
+import { GraphQLError } from "graphql";
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { GraphQLError } from "graphql";
+
+// TODO: Refactor throwing errors
 
 const trimAndLowerCase = (string) => string.toLowerCase().trim();
 
@@ -61,10 +64,15 @@ export default {
   },
 
   // Note
-  newNote: async (_, { content }, { models }) => {
-    let newNoteValues = {
-      content: content,
-      author: "Adam Scott",
+  newNote: async (_, { content }, { models, user }) => {
+    if (!user) {
+      throw new Error("You must be signed in to create a note");
+    }
+
+    const author = new mongoose.Types.ObjectId(user.id);
+    const newNoteValues = {
+      content,
+      author,
     };
 
     const note = await models.Note.create(newNoteValues);
@@ -72,21 +80,44 @@ export default {
     return note;
   },
 
-  updateNote: async (_, { id, content }, { models }) => {
-    const note = await models.Note.findByIdAndUpdate(
-      id,
-      { $set: { content } },
-      { returnDocument: "after" }
-    );
+  updateNote: async (_, { id, content }, { models, user }) => {
+    if (!user) {
+      throw new Error("You must be signed in to create a note");
+    }
 
-    return note;
+    const note = await models.Note.findById(id);
+
+    const userIsAuthor = note && note.author._id.toString() === user.id;
+
+    if (userIsAuthor) {
+      const updatedNote = models.Note.findOneAndUpdate(
+        { _id: id },
+        { $set: { content } },
+        { returnDocument: "after" }
+      );
+
+      return updatedNote;
+    }
+
+    throw new Error("You don't have permissions to update the note");
   },
 
-  removeNote: async (_, { id }, { models }) => {
+  removeNote: async (_, { id }, { models, user }) => {
     try {
-      await models.Note.findByIdAndRemove(id);
+      if (!user) {
+        throw new Error("You must be signed in to create a note");
+      }
 
-      return true;
+      const note = await models.Note.findById(id);
+
+      const userIsAuthorFlag = note && note.author._id.toString() === user.id;
+
+      if (userIsAuthorFlag) {
+        await note.deleteOne();
+        return true;
+      } else {
+        throw new Error("You don't have permissions to delete the note");
+      }
     } catch {
       return false;
     }
