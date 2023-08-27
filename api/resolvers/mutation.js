@@ -1,73 +1,84 @@
 import gravatar from "../utils/gravatar.js";
 import { GraphQLError } from "graphql";
+import errors from "../errors.js";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-// TODO: Refactor throwing errors
-
 const trimAndLowerCase = (string) => string.toLowerCase().trim();
+
+const checkUserIsSignedIn = (user, errorMessage) => {
+  if (!user) {
+    throw new Error(errorMessage);
+  }
+};
+
+const prepareUserInfoForSignUp = async (userFormData) => {
+  const { username, email, password } = userFormData;
+
+  const formattedUsername = trimAndLowerCase(username);
+  const formattedEmail = trimAndLowerCase(email);
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const avatar = gravatar(email);
+
+  return {
+    formattedUsername,
+    formattedEmail,
+    hashedPassword,
+    avatar,
+  };
+};
+
+const prepareUserForSignIn = async (username, UserModel) => {
+  const formattedUsername = trimAndLowerCase(username);
+
+  const user = await UserModel.findOne({ username: formattedUsername });
+
+  if (!user) {
+    return new GraphQLError("Incorrect username", errors.UNAUTHENTICATED);
+  }
+
+  return user;
+};
 
 export default {
   // Auth
-  signUp: async (_, { username, email, password }, { models }) => {
-    const formattedUsername = trimAndLowerCase(username);
-    const formattedEmail = trimAndLowerCase(email);
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const avatar = gravatar(email);
+  signUp: async (_, userFormData, { models }) => {
+    const preparedUserInfo = await prepareUserInfoForSignUp(userFormData);
 
     try {
-      const user = await models.User.create({
-        username: formattedUsername,
-        email: formattedEmail,
-        password: hashedPassword,
-        avatar,
-      });
+      const user = await models.User.create(preparedUserInfo);
 
       return jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
     } catch (err) {
-      return new GraphQLError("Username and email must be unique", {
-        extensions: {
-          code: "UNAUTHENTICATED",
-          http: { status: 401 },
-        },
-      });
+      return new GraphQLError(
+        "Username and email must be unique",
+        errors.UNAUTHENTICATED
+      );
     }
   },
 
   signIn: async (_, { username, password }, { models }) => {
-    const formattedUsername = trimAndLowerCase(username);
+    const preparedUser = prepareUserForSignIn(username, models.User);
 
-    const user = await models.User.findOne({ username: formattedUsername });
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      preparedUser.password
+    );
 
-    if (!user) {
-      return new GraphQLError("Incorrect username", {
-        extensions: {
-          code: "UNAUTHENTICATED",
-          http: { status: 401 },
-        },
-      });
-    } else {
-      const compareResult = await bcrypt.compare(password, user.password);
-
-      if (compareResult) {
-        return jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
-      }
-
-      return new GraphQLError("The password isn't correct", {
-        extensions: {
-          code: "UNAUTHENTICATED",
-          http: { status: 401 },
-        },
-      });
+    if (isPasswordCorrect) {
+      return jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
     }
+
+    return new GraphQLError(
+      "The password isn't correct",
+      errors.UNAUTHENTICATED
+    );
   },
 
   // Note
   newNote: async (_, { content }, { models, user }) => {
-    if (!user) {
-      throw new Error("You must be signed in to create a note");
-    }
+    checkUserIsSignedIn(user, "You must be signed in to create a note");
 
     const author = new mongoose.Types.ObjectId(user.id);
     const newNoteValues = {
@@ -81,9 +92,7 @@ export default {
   },
 
   updateNote: async (_, { id, content }, { models, user }) => {
-    if (!user) {
-      throw new Error("You must be signed in to create a note");
-    }
+    checkUserIsSignedIn(user, "You must be signed in to update a note");
 
     const note = await models.Note.findById(id);
 
@@ -104,15 +113,13 @@ export default {
 
   removeNote: async (_, { id }, { models, user }) => {
     try {
-      if (!user) {
-        throw new Error("You must be signed in to create a note");
-      }
+      checkUserIsSignedIn(user, "You must be signed in to remove the note");
 
       const note = await models.Note.findById(id);
 
-      const userIsAuthorFlag = note && note.author._id.toString() === user.id;
+      const userIsAuthor = note && note.author._id.toString() === user.id;
 
-      if (userIsAuthorFlag) {
+      if (userIsAuthor) {
         await note.deleteOne();
         return true;
       } else {
@@ -124,9 +131,7 @@ export default {
   },
 
   toggleFavorite: async (_, { id }, { models, user }) => {
-    if (!user) {
-      throw new Error("You must be signed in to do this action");
-    }
+    checkUserIsSignedIn(user, "You must be signed in to do this action");
 
     const note = await models.Note.findById(id);
     const noteHasUser = note.inFavorite.indexOf(user.id);
