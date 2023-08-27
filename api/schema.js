@@ -5,6 +5,8 @@ export default `#graphql
     id: ID!
     content: String!
     author: User!
+    favoriteCount: Int!
+    inFavorite: [User!]!
     createdAt: DateTime!
     updatedAt: DateTime!
   }
@@ -14,15 +16,16 @@ export default `#graphql
     username: String!
     email: String!
     avatar: String!
-    notes: [Note]
+    notes: [Note!]!
+    favoriteNotes: [Note!]!
   }
 
   type Query {
-    notes: [Note]
+    notes: [Note!]
     note(id: ID): Note
 
     user(username: String!): User
-    users: [User]
+    users: [User!]!
     me: User
   }
 
@@ -30,6 +33,7 @@ export default `#graphql
     newNote(content: String!): Note!
     updateNote(id: ID!, content: String!): Note!
     removeNote(id: ID!): Boolean!
+    toggleFavorite(id: ID!): Note!
 
     signUp(username: String!, email: String!, password: String!): String!
     signIn(username: String!, password: String!): String!

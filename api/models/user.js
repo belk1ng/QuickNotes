@@ -21,6 +21,18 @@ const userSchema = new Schema(
     avatar: {
       type: String,
     },
+    notes: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Notes",
+      },
+    ],
+    favoriteNotes: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Notes",
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -122,4 +122,37 @@ export default {
       return false;
     }
   },
+
+  toggleFavorite: async (_, { id }, { models, user }) => {
+    if (!user) {
+      throw new Error("You must be signed in to do this action");
+    }
+
+    const note = await models.Note.findById(id);
+    const noteHasUser = note.inFavorite.indexOf(user.id);
+
+    let updatedNote;
+
+    if (noteHasUser >= 0) {
+      updatedNote = await models.Note.findByIdAndUpdate(
+        note.id,
+        {
+          $pull: { inFavorite: new mongoose.Types.ObjectId(user.id) },
+          $inc: { favoriteCount: -1 },
+        },
+        { new: true }
+      );
+    } else {
+      updatedNote = await models.Note.findByIdAndUpdate(
+        note.id,
+        {
+          $push: { inFavorite: new mongoose.Types.ObjectId(user.id) },
+          $inc: { favoriteCount: 1 },
+        },
+        { new: true }
+      );
+    }
+
+    return updatedNote;
+  },
 };
