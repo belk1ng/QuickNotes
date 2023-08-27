@@ -1,15 +1,31 @@
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { startStandaloneServer } from "@apollo/server/standalone";
 import { ApolloServer } from "@apollo/server";
-import typeDefs from "./schema.js";
 import resolvers from "./resolvers/index.js";
+import typeDefs from "./schema.js";
 import "dotenv/config";
+
+import { createServer } from "http";
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+
 import DatabaseClient from "./database.js";
 import { Note, User } from "./models/index.js";
 import getUser from "./utils/getUser.js";
 
 const models = { Note, User };
 
-const server = new ApolloServer({ typeDefs, resolvers });
+const app = express();
+const httpServer = createServer(app);
+
+app.use(cors, helmet);
+
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
+});
 
 const port = process.env.PORT ?? 4000;
 
