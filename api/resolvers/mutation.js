@@ -22,14 +22,14 @@ const prepareUserInfoForSignUp = async (userFormData) => {
   const avatar = gravatar(email);
 
   return {
-    formattedUsername,
-    formattedEmail,
-    hashedPassword,
+    username: formattedUsername,
+    email: formattedEmail,
+    password: hashedPassword,
     avatar,
   };
 };
 
-const prepareUserForSignIn = async (username, UserModel) => {
+const getUserByUsernameOrError = async (username, UserModel) => {
   const formattedUsername = trimAndLowerCase(username);
 
   const user = await UserModel.findOne({ username: formattedUsername });
@@ -42,7 +42,6 @@ const prepareUserForSignIn = async (username, UserModel) => {
 };
 
 export default {
-  // Auth
   signUp: async (_, userFormData, { models }) => {
     const preparedUserInfo = await prepareUserInfoForSignUp(userFormData);
 
@@ -59,15 +58,15 @@ export default {
   },
 
   signIn: async (_, { username, password }, { models }) => {
-    const preparedUser = prepareUserForSignIn(username, models.User);
+    const possibleUser = await getUserByUsernameOrError(username, models.User);
 
     const isPasswordCorrect = await bcrypt.compare(
       password,
-      preparedUser.password
+      possibleUser?.password
     );
 
     if (isPasswordCorrect) {
-      return jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
+      return jwt.sign({ id: possibleUser._id }, process.env.JWT_SECRET_KEY);
     }
 
     return new GraphQLError(
@@ -76,7 +75,6 @@ export default {
     );
   },
 
-  // Note
   newNote: async (_, { content }, { models, user }) => {
     checkUserIsSignedIn(user, "You must be signed in to create a note");
 
@@ -134,11 +132,11 @@ export default {
     checkUserIsSignedIn(user, "You must be signed in to do this action");
 
     const note = await models.Note.findById(id);
-    const noteHasUser = note.inFavorite.indexOf(user.id);
+    const noteHasRequestUser = note.inFavorite.indexOf(user.id) >= 0;
 
     let updatedNote;
 
-    if (noteHasUser >= 0) {
+    if (noteHasRequestUser) {
       updatedNote = await models.Note.findByIdAndUpdate(
         note.id,
         {

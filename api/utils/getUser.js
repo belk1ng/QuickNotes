@@ -3,10 +3,12 @@ import errors from "../errors.js";
 import jwt from "jsonwebtoken";
 
 const getUser = (token) => {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET_KEY);
-  } catch {
-    return new GraphQLError("Session expired", errors.UNAUTHENTICATED);
+  if (token) {
+    try {
+      return jwt.verify(token, process.env.JWT_SECRET_KEY);
+    } catch {
+      return new GraphQLError("Session expired", errors.UNAUTHENTICATED);
+    }
   }
 };
 

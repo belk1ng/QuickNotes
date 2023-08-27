@@ -6,7 +6,7 @@ export default {
   },
 
   inFavorite: async (note, _, { models }) => {
-    const usersWithNoteInFavoriteList = await models.Note.find({
+    const usersWithNoteInFavoriteList = await models.User.find({
       _id: { $in: note.inFavorite },
     });
 

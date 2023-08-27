@@ -1,5 +1,4 @@
 export default {
-  // Notes
   notes: async (_, __, { models }) => {
     const records = await models.Note.find();
 
@@ -12,7 +11,6 @@ export default {
     return note;
   },
 
-  // Users
   user: async (_, { username }, { models }) => {
     const _user = await models.User.findOne({ username });
 

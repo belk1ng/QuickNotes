@@ -17,9 +17,9 @@ import getUser from "./utils/getUser.js";
 const models = { Note, User };
 
 const app = express();
-const httpServer = createServer(app);
-
 app.use(cors, helmet);
+
+const httpServer = createServer(app);
 
 const server = new ApolloServer({
   typeDefs,
